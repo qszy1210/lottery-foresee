@@ -1,0 +1,34 @@
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+.env
+
+# Logs / runtime
+*.log
+backend/.dev_backend.log
+frontend/.dev_frontend.log
+backend/.dev_backend.pid
+frontend/.dev_frontend.pid
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Generated data / local artifacts
+backend/data/*.csv
+backend/data/prediction_history_*.json
+backend/data/comparison_*.json
+
