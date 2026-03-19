@@ -1,97 +1,197 @@
-# Lottery Foresee 项目说明
+# Lottery Foresee（双色球 / 大乐透概率建模预测）
 
-## 项目简介
+`Lottery Foresee` 是一个用于学习与研究的彩票网号码预测/统计项目，主要包含：
 
-`Lottery Foresee` 是一个针对 **双色球** 和 **大乐透** 的预测软件，基于历史开奖数据进行大数统计和概率建模，通过加权模拟与筛选给出每期 5 组推荐号码。
+- 基于历史开奖数据进行“大数统计”和概率建模
+- 使用加权模拟生成候选组合并打分排序
+- 给出双色球/大乐透每次推荐（可配置推荐组数，默认 5 组）
+- 记录每次生成结果（历史生成记录）
+- 支持“预测与真实开奖比对”（用于差异分析与后续修正）
+- 前端提供页面：推荐、历史统计、历史记录、比对结果展示
 
-> 声明：本项目仅用于数学建模与编程学习研究，不构成任何形式的购彩建议或收益保证。
+> 声明：本项目仅用于数学建模与编程学习研究，不构成任何购彩建议或收益保证。
 
-## 目录结构
+## 仓库结构
 
-- `backend/`：FastAPI 后端服务
-  - `app/domain/`：核心领域模型、统计、模拟与打分逻辑
-  - `app/services/`：数据加载、预测服务、回测与统计聚合
-  - `app/routers/`：HTTP API 路由
-  - `app/scripts/`：爬虫与回测脚本
-  - `requirements.txt`：后端依赖
-- `frontend/`：Vite + React 前端
-- `docs/`：架构设计、任务跟踪、测试计划与收敛分析文档
+- `backend/`：FastAPI 后端（预测、统计、历史记录、比对、数据拉取接口）
+  - `backend/app/domain/`：统计、模拟、打分等核心逻辑
+  - `backend/app/services/`：服务层（预测服务、历史记录服务、比对服务、调度服务等）
+  - `backend/app/routers/`：HTTP API 路由
+  - `backend/app/scripts/`：数据抓取脚本（可选）
+  - `backend/tests/`：后端单元测试
+- `frontend/`：Vite + React 前端（UI 与调用后端接口）
+- `docs/`：项目文档（架构、任务计划、测试计划、收敛分析设计、使用指南）
+- `dev.sh`：一键启动/停止/拉取数据/运行测试
 
-## 后端使用说明
+## 环境要求（建议）
 
-### 安装依赖
+后端：
+
+- Python：3.9+（本项目开发环境使用 3.9）
+- 需要网络（仅在执行数据抓取脚本时使用；否则可使用本地示例数据）
+
+前端：
+
+- Node.js：18+（建议与项目兼容版本一致）
+- npm：用于安装依赖与启动 Vite
+
+工具：
+
+- 推荐使用 `git` 管理代码与提交
+
+## 关键数据文件说明
+
+后端读取历史开奖数据的默认路径：
+
+- `backend/data/ssq_history.csv`
+- `backend/data/dlt_history.csv`
+
+在你首次启动时（如果这些文件不存在），后端会自动生成一份示例数据以保证“开箱可用”。
+
+> 若你希望使用真实历史数据：需要执行 `./dev.sh fetch-data` 或调用后端抓取接口（见下文）。
+
+## 快速开始（推荐）
+
+### 1）启动前：安装依赖
+
+#### 后端（推荐使用虚拟环境）
 
 ```bash
 cd backend
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 抓取历史数据
-
-```bash
-cd backend
-python -m app.scripts.fetch_ssq
-python -m app.scripts.fetch_dlt
-```
-
-执行成功后会在 `backend/data/` 下生成：
-
-- `ssq_history.csv`
-- `dlt_history.csv`
-
-### 启动后端服务
-
-```bash
-cd backend
-uvicorn app.main:app --reload
-```
-
-默认监听 `http://127.0.0.1:8000`。
-
-### 主要接口
-
-- `GET /health`：健康检查
-- `POST /ssq/predict`：获取 5 组双色球推荐号码
-- `POST /dlt/predict`：获取 5 组大乐透推荐号码
-- `GET /ssq/stats/summary`：双色球历史统计汇总（频率、遗漏等）
-- `GET /dlt/stats/summary`：大乐透历史统计汇总
-
-回测脚本示例：
-
-```bash
-cd backend
-python -m app.scripts.backtest_demo
-```
-
-## 前端使用说明
-
-### 安装依赖并启动
+#### 前端
 
 ```bash
 cd frontend
 npm install
-npm run dev
 ```
 
-默认访问 `http://127.0.0.1:5173`，通过 Vite 代理访问后端接口。
+### 2）一键启动
 
-前端主要能力：
+在仓库根目录执行：
 
-- 切换双色球 / 大乐透，一键生成 5 组推荐号码并展示打分
-- 查看历史号码热度与遗漏情况（双色球红/蓝球、大乐透前区/后区）
+```bash
+cd /path/to/lottery_foresee
+./dev.sh start
+```
 
-## 测试与回测
+- 前端：`http://127.0.0.1:5173/`
+- 后端：`http://127.0.0.1:8000/health`
 
-在 `backend` 中运行单元测试：
+### 3）一键抓取真实历史数据（可选）
+
+如果你希望用真实开奖数据而不是示例数据：
+
+```bash
+./dev.sh fetch-data
+```
+
+抓取结果将写入：
+
+- `backend/data/ssq_history.csv`
+- `backend/data/dlt_history.csv`
+
+> 数据抓取依赖第三方页面结构，若页面结构变更可能导致解析失败；失败时请查看后端日志并可回退到示例数据。
+
+## 前端如何使用
+
+打开 `http://127.0.0.1:5173/`：
+
+1. 选择 Tab：
+   - `双色球`
+   - `大乐透`
+   - `历史统计`
+   - `历史记录`
+2. 生成推荐：
+   - 可在“推荐组数”处设置一次生成返回的组数（1–20）
+   - 默认提供“自动拉取（基于上次拉取时间判定）”开关
+   - 点击“生成推荐”后，页面会展示推荐号码与每组分数
+3. 历史记录与比对：
+   - 每次生成会写入历史记录文件（后端自动保存）
+   - 在 `历史记录` 页点击“执行比对”，即可展示每条记录对应的实际期号/开奖日与命中差异
+
+## 后端 API（用于开发/调试）
+
+健康检查：
+
+- `GET /health`
+
+下一期信息（按开奖日期规律推算）：
+
+- `GET /ssq/next` → `{"issue":"xxxx","draw_date":"YYYY-MM-DD"}`
+- `GET /dlt/next` → `{"issue":"xxxx","draw_date":"YYYY-MM-DD"}`
+
+预测接口（返回推荐 1–20 组，默认取配置/参数）：
+
+- `POST /ssq/predict`
+  - Query 参数：
+    - `recommend_count`（1–20，可选）
+    - `window_size`（可选）
+    - `sample_size`（可选）
+    - `seed`（可选）
+    - `use_correction`（可选，是否启用历史比对修正；当前在比对样本不足时退化为不修正）
+  - 返回：`[{reds:[...6], blue:int, score:float}, ...]`
+- `POST /dlt/predict` 同理，返回前区/后区组合与 score
+
+历史统计汇总：
+
+- `GET /ssq/stats/summary`
+- `GET /dlt/stats/summary`
+
+历史生成记录（最近记录）：
+
+- `GET /ssq/history?limit=50`
+- `GET /dlt/history?limit=50`
+
+比对接口：
+
+- `POST /data/compare`
+  - 返回汇总 + 明细（明细用于前端逐条展示命中差异）
+- `GET /ssq/hit-stats`
+- `GET /dlt/hit-stats`
+
+数据拉取接口：
+
+- `POST /data/fetch-ssq` / `POST /data/fetch-dlt`（直接拉取，可能需要网络）
+- `POST /data/ensure-fresh/{lottery}`
+  - 根据后端保存的“上次拉取时间”判断是否需要拉取（用于前端自动拉取逻辑）
+
+算法说明：
+
+- `GET /algorithm`
+
+## 自动拉取与比对对齐逻辑（简述）
+
+- 预测写入历史记录时，会同时保存“目标期号/目标开奖日”（由 `GET /ssq/next`、`GET /dlt/next` 的推算逻辑产生）
+- 比对时优先使用：
+  - `history_record.target_issue` 去匹配真实开奖数据的 `issue`
+  - 匹配不到时才回退到“按生成时间最近一期”的策略（用于兼容旧记录）
+
+## 测试
+
+在 `backend/` 目录运行：
 
 ```bash
 cd backend
+source .venv/bin/activate
 pytest
 ```
 
-测试覆盖：
+## 开发脚本（dev.sh）
 
-- 频率、遗漏等基础统计
-- 组合生成与打分逻辑的基本正确性
+在仓库根目录：
 
-回测与收敛分析设计请参考 `docs/convergence_analysis.md` 与 `backend/app/scripts/backtest_demo.py`。+
+- `./dev.sh start`：启动后端 + 前端
+- `./dev.sh stop`：停止后端 + 前端
+- `./dev.sh restart`：重启
+- `./dev.sh fetch-data`：抓取真实历史数据
+- `./dev.sh test`：运行后端 pytest
+
+## 免责声明
+
+彩票属于随机事件，本项目提供的是编程与统计建模学习用途，任何预测结果不代表未来真实结果，也不构成任何投资/购彩建议。
+
