@@ -15,24 +15,31 @@ else
   PYTHON_CMD="python"
 fi
 
-# 后端：优先使用项目 .venv 中的 uvicorn
+# 后端：优先使用 backend/.venv，其次 root/.venv
 UVICORN_CMD=""
-if [[ -f "$ROOT_DIR/.venv/bin/uvicorn" ]]; then
-  UVICORN_CMD="$ROOT_DIR/.venv/bin/uvicorn"
-elif [[ -f "$ROOT_DIR/.venv/bin/activate" ]]; then
-  # venv 存在但可能 uvicorn 未装，用 venv 的 python -m uvicorn
-  UVICORN_CMD="$ROOT_DIR/.venv/bin/python -m uvicorn"
-else
+BACKEND_PYTHON="$PYTHON_CMD"
+for VENV_DIR in "$BACKEND_DIR/.venv" "$ROOT_DIR/.venv"; do
+  if [[ -f "$VENV_DIR/bin/activate" ]]; then
+    BACKEND_PYTHON="$VENV_DIR/bin/python"
+    if [[ -f "$VENV_DIR/bin/uvicorn" ]]; then
+      UVICORN_CMD="$VENV_DIR/bin/uvicorn"
+    else
+      UVICORN_CMD="$VENV_DIR/bin/python -m uvicorn"
+    fi
+    break
+  fi
+done
+if [[ -z "$UVICORN_CMD" ]]; then
   UVICORN_CMD="$PYTHON_CMD -m uvicorn"
 fi
 
 start_backend() {
   echo "Starting backend..."
   cd "$BACKEND_DIR"
-  # 若无历史数据则生成示例数据，保证首启即可用
   if [[ ! -f "$BACKEND_DIR/data/ssq_history.csv" ]] || [[ ! -f "$BACKEND_DIR/data/dlt_history.csv" ]]; then
-    echo "No history data found, generating sample data..."
-    "$PYTHON_CMD" "$BACKEND_DIR/scripts/gen_sample_data.py"
+    echo "Initializing history data from bundled dataset..."
+    "$BACKEND_PYTHON" -c "from app.scripts.fetch_ssq import fetch_ssq_history; fetch_ssq_history()" 2>/dev/null || true
+    "$BACKEND_PYTHON" -c "from app.scripts.fetch_dlt import fetch_dlt_history; fetch_dlt_history()" 2>/dev/null || true
   fi
   if [[ -f "$BACKEND_PID_FILE" ]]; then
     if ps -p "$(cat "$BACKEND_PID_FILE")" > /dev/null 2>&1; then
@@ -42,7 +49,7 @@ start_backend() {
   fi
   $UVICORN_CMD app.main:app --reload --port 8000 > "$BACKEND_DIR/.dev_backend.log" 2>&1 &
   echo $! > "$BACKEND_PID_FILE"
-  echo "Backend started with PID $(cat "$BACKEND_PID_FILE")"
+  echo "Backend started with PID $(cat "$BACKEND_PID_FILE") -> http://127.0.0.1:8000"
 }
 
 start_frontend() {
@@ -58,10 +65,13 @@ start_frontend() {
       return
     fi
   fi
-  # 使用 npx vite 确保使用项目内的 vite，nohup 防止脚本退出时进程被关
-  nohup npx vite --host 127.0.0.1 --port 5173 > "$FRONTEND_DIR/.dev_frontend.log" 2>&1 &
+  FRONTEND_PORT=5173
+  nohup npx vite --host 127.0.0.1 --port "$FRONTEND_PORT" > "$FRONTEND_DIR/.dev_frontend.log" 2>&1 &
   echo $! > "$FRONTEND_PID_FILE"
-  echo "Frontend started with PID $(cat "$FRONTEND_PID_FILE")"
+  echo "Frontend started with PID $(cat "$FRONTEND_PID_FILE") -> http://127.0.0.1:${FRONTEND_PORT}"
+  echo ""
+  echo "  Open http://127.0.0.1:${FRONTEND_PORT} in your browser"
+  echo ""
 }
 
 stop_backend() {
@@ -94,6 +104,7 @@ case "$1" in
   stop)
     stop_backend
     stop_frontend
+    echo "All services stopped."
     ;;
   restart)
     stop_backend

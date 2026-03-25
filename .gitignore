@@ -27,8 +27,12 @@ frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 
-# Generated data / local artifacts
+# Generated data / local artifacts (runtime)
 backend/data/*.csv
 backend/data/prediction_history_*.json
 backend/data/comparison_*.json
+
+# Bundled historical data is tracked (NOT ignored)
+!backend/app/data/
+!backend/app/data/*.csv
 
