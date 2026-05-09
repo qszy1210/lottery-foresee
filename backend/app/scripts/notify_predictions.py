@@ -34,20 +34,28 @@ _DLT_DRAW_WEEKDAYS = {0, 2, 5}  # 一 / 三 / 六
 
 
 def _decide_lotteries(today: date, override: str = "auto") -> List[str]:
-    """决定今天该推送哪些彩种。"""
+    """决定今天该推送哪些彩种。
+
+    - ssq / dlt：仅推该彩种
+    - both：双色球 + 大乐透
+    - auto（默认）：每天都推送 SSQ 和 DLT 两组预测，
+      利用「提前公布」覆盖最近的下一期开奖（双色球与大乐透交错的开奖周期使得每天预测都可指向最近的下一期）
+    - draw_day：仅在该彩种当天开奖时推送（旧版 auto 行为，可作为可选模式）
+    """
     override = (override or "auto").lower()
     if override in ("ssq", "dlt"):
         return [override]
-    if override == "both":
+    if override in ("both", "auto"):
         return ["ssq", "dlt"]
-    # auto：按当天周几自动判断
-    wd = today.weekday()
-    out: List[str] = []
-    if wd in _DLT_DRAW_WEEKDAYS:
-        out.append("dlt")
-    if wd in _SSQ_DRAW_WEEKDAYS:
-        out.append("ssq")
-    return out
+    if override == "draw_day":
+        wd = today.weekday()
+        out: List[str] = []
+        if wd in _DLT_DRAW_WEEKDAYS:
+            out.append("dlt")
+        if wd in _SSQ_DRAW_WEEKDAYS:
+            out.append("ssq")
+        return out
+    return ["ssq", "dlt"]
 
 
 def _ensure_data() -> None:
@@ -140,8 +148,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="发送彩票推荐到飞书")
     parser.add_argument(
         "--lottery", default=os.environ.get("LOTTERY_TYPE", "auto"),
-        choices=["auto", "ssq", "dlt", "both"],
-        help="强制指定彩种，默认 auto（按周几自动判断）",
+        choices=["auto", "ssq", "dlt", "both", "draw_day"],
+        help="彩种选择：auto/both=每天双色球+大乐透；ssq/dlt=单一彩种；draw_day=仅当天开奖的彩种",
     )
     parser.add_argument("--recommend-count", type=int,
                         default=int(os.environ.get("RECOMMEND_COUNT", "5")))
@@ -157,7 +165,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     today = date.today()
     targets = _decide_lotteries(today, override=args.lottery)
     if not targets:
-        logger.info("今天 %s（周%d）没有开奖，跳过推送", today, today.weekday() + 1)
+        logger.info("今天 %s（周%d）无需推送（mode=%s）",
+                    today, today.weekday() + 1, args.lottery)
         return 0
 
     logger.info("今天将推送：%s", ", ".join(targets))

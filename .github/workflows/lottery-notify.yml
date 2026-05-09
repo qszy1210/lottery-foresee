@@ -2,15 +2,14 @@ name: Lottery Notify
 
 on:
   schedule:
-    # 北京时间 10:00 = UTC 02:00
-    # 双色球 (SSQ) 开奖：周二、周四、周日
-    # 大乐透 (DLT) 开奖：周一、周三、周六
-    # cron 字段: 分 时 日 月 周（0=Sun, 1=Mon, ... 6=Sat）
-    - cron: '0 2 * * 0,1,2,3,4,6'
+    # 北京时间每天 10:00（UTC 02:00）触发
+    # 默认 auto 模式下每天会同时推送双色球 + 大乐透两组预测，
+    # 提前覆盖最近一期开奖（SSQ：二/四/日，DLT：一/三/六）
+    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       lottery:
-        description: '彩种 (auto/ssq/dlt/both)'
+        description: '彩种 (auto=每天都发双色球+大乐透；draw_day=仅当天开奖的彩种)'
         required: false
         default: 'auto'
         type: choice
@@ -19,6 +18,7 @@ on:
           - ssq
           - dlt
           - both
+          - draw_day
       recommend_count:
         description: '推荐组数'
         required: false
