@@ -191,6 +191,49 @@ pytest
 - `./dev.sh fetch-data`：抓取真实历史数据
 - `./dev.sh test`：运行后端 pytest
 
+## 飞书自动通知（GitHub Actions）
+
+项目内置 GitHub Actions 工作流（`.github/workflows/lottery-notify.yml`），可在每个开奖日自动生成推荐并推送到飞书机器人。
+
+### 推送频率（按开奖日）
+
+工作流在北京时间 **每天 10:00**（UTC 02:00）触发，并自动判断当天是否需要推送：
+
+| 周一 | 周二 | 周三 | 周四 | 周五 | 周六 | 周日 |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| 大乐透 | 双色球 | 大乐透 | 双色球 | 跳过 | 大乐透 | 双色球 |
+
+> 双色球开奖日：周二 / 周四 / 周日；大乐透开奖日：周一 / 周三 / 周六。
+
+### 配置 GitHub Secrets
+
+在仓库 `Settings → Secrets and variables → Actions` 中添加：
+
+| Secret 名称 | 必填 | 说明 |
+|---|---|---|
+| `FEISHU_WEBHOOK_URL` | 是 | 形如 `https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxx` |
+| `FEISHU_WEBHOOK_SECRET` | 启用「签名校验」时必填 | 飞书机器人创建时分配的 token |
+
+### 手动触发 / 调试
+
+在 `Actions → Lottery Notify` 中选择 `Run workflow`，可指定：
+
+- `lottery`：`auto`（默认按周几）/ `ssq` / `dlt` / `both`
+- `recommend_count`：推荐组数
+- `dry_run`：`true` 仅生成不发送
+
+### 本地手动推送
+
+```bash
+cd backend
+source .venv/bin/activate
+export FEISHU_WEBHOOK_URL='https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxx'
+export FEISHU_WEBHOOK_SECRET='your-token'
+python -m app.scripts.notify_predictions             # 按当天周几自动判断
+python -m app.scripts.notify_predictions --lottery ssq
+python -m app.scripts.notify_predictions --dry-run --lottery both
+```
+
 ## 免责声明
 
 彩票属于随机事件，本项目提供的是编程与统计建模学习用途，任何预测结果不代表未来真实结果，也不构成任何投资/购彩建议。
