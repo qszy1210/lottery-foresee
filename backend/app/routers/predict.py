@@ -17,11 +17,11 @@ router = APIRouter()
 
 
 def _ssq_to_dict(r: SsqRecommendation) -> dict:
-    return {"reds": r.reds, "blue": r.blue, "score": r.score}
+    return {"reds": r.reds, "blue": r.blue, "score": r.score, "kind": r.kind}
 
 
 def _dlt_to_dict(r: DltRecommendation) -> dict:
-    return {"fronts": r.fronts, "backs": r.backs, "score": r.score}
+    return {"fronts": r.fronts, "backs": r.backs, "score": r.score, "kind": r.kind}
 
 
 @router.post("/ssq/predict", response_model=List[SsqRecommendation])

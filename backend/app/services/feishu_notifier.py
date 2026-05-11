@@ -88,12 +88,43 @@ def _format_dlt_line(idx: int, fronts: List[int], backs: List[int], score: float
     return f"**#{idx}** 前 {front_str} ｜后 {back_str} ｜分 {score:.4f}"
 
 
+def _format_ssq_shock_line(reds: List[int], blue: int, score: float) -> str:
+    red_str = " ".join(_ball(n, "red") for n in reds)
+    blue_str = _ball(blue, "blue")
+    return (
+        f"<font color='purple'>**💥 震荡推荐**</font> "
+        f"红 {red_str} ｜蓝 {blue_str} ｜分 {score:.4f}"
+    )
+
+
+def _format_dlt_shock_line(fronts: List[int], backs: List[int], score: float) -> str:
+    front_str = " ".join(_ball(n, "blue") for n in fronts)
+    back_str = " ".join(_ball(n, "orange") for n in backs)
+    return (
+        f"<font color='purple'>**💥 震荡推荐**</font> "
+        f"前 {front_str} ｜后 {back_str} ｜分 {score:.4f}"
+    )
+
+
+def _split_main_shock(recs: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """按 kind 字段切分主推荐和震荡推荐；旧数据无 kind 视为 main。"""
+    mains: List[Dict[str, Any]] = []
+    shocks: List[Dict[str, Any]] = []
+    for r in recs:
+        if r.get("kind") == "shock":
+            shocks.append(r)
+        else:
+            mains.append(r)
+    return mains, shocks
+
+
 def build_ssq_card(
     issue: str,
     draw_date: str,
     recommendations: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    """构造双色球推荐卡片。"""
+    """构造双色球推荐卡片，识别 kind=shock 单独区块展示震荡号码。"""
+    mains, shocks = _split_main_shock(recommendations)
     elements: List[Dict[str, Any]] = [
         {
             "tag": "div",
@@ -101,15 +132,21 @@ def build_ssq_card(
                 "tag": "lark_md",
                 "content": (
                     f"**预测期号：{issue}**　开奖日：{draw_date}\n"
-                    f"基于历史数据 + 蒙特卡洛算法 ｜共 {len(recommendations)} 组推荐"
+                    f"基于历史数据 + 蒙特卡洛算法 ｜共 {len(mains)} 组主推荐"
+                    + (f" + {len(shocks)} 注震荡" if shocks else "")
                 ),
             },
         },
         {"tag": "hr"},
     ]
-    for idx, rec in enumerate(recommendations, start=1):
+    for idx, rec in enumerate(mains, start=1):
         line = _format_ssq_line(idx, rec["reds"], rec["blue"], rec["score"])
         elements.append({"tag": "div", "text": {"tag": "lark_md", "content": line}})
+    if shocks:
+        elements.append({"tag": "hr"})
+        for rec in shocks:
+            line = _format_ssq_shock_line(rec["reds"], rec["blue"], rec["score"])
+            elements.append({"tag": "div", "text": {"tag": "lark_md", "content": line}})
     elements.append({"tag": "hr"})
     elements.append({
         "tag": "note",
@@ -133,7 +170,8 @@ def build_dlt_card(
     draw_date: str,
     recommendations: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    """构造大乐透推荐卡片。"""
+    """构造大乐透推荐卡片，识别 kind=shock 单独区块展示震荡号码。"""
+    mains, shocks = _split_main_shock(recommendations)
     elements: List[Dict[str, Any]] = [
         {
             "tag": "div",
@@ -141,15 +179,21 @@ def build_dlt_card(
                 "tag": "lark_md",
                 "content": (
                     f"**预测期号：{issue}**　开奖日：{draw_date}\n"
-                    f"基于历史数据 + 蒙特卡洛算法 ｜共 {len(recommendations)} 组推荐"
+                    f"基于历史数据 + 蒙特卡洛算法 ｜共 {len(mains)} 组主推荐"
+                    + (f" + {len(shocks)} 注震荡" if shocks else "")
                 ),
             },
         },
         {"tag": "hr"},
     ]
-    for idx, rec in enumerate(recommendations, start=1):
+    for idx, rec in enumerate(mains, start=1):
         line = _format_dlt_line(idx, rec["fronts"], rec["backs"], rec["score"])
         elements.append({"tag": "div", "text": {"tag": "lark_md", "content": line}})
+    if shocks:
+        elements.append({"tag": "hr"})
+        for rec in shocks:
+            line = _format_dlt_shock_line(rec["fronts"], rec["backs"], rec["score"])
+            elements.append({"tag": "div", "text": {"tag": "lark_md", "content": line}})
     elements.append({"tag": "hr"})
     elements.append({
         "tag": "note",

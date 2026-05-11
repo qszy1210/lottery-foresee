@@ -1,16 +1,20 @@
 import React, { useState } from "react";
 import axios from "axios";
 
+type RecommendationKind = "main" | "shock";
+
 type SsqRecommendation = {
   reds: number[];
   blue: number;
   score: number;
+  kind?: RecommendationKind;
 };
 
 type DltRecommendation = {
   fronts: number[];
   backs: number[];
   score: number;
+  kind?: RecommendationKind;
 };
 
 type Tab = "ssq" | "dlt" | "stats" | "history";
@@ -22,7 +26,7 @@ type HistoryRecord = {
   target_issue?: string | null;
   target_date?: string | null;
   params: { recommend_count?: number };
-  results: Array<{ reds?: number[]; blue?: number; fronts?: number[]; backs?: number[]; score: number }>;
+  results: Array<{ reds?: number[]; blue?: number; fronts?: number[]; backs?: number[]; score: number; kind?: RecommendationKind }>;
 };
 
 type NextInfo = { issue: string; draw_date: string };
@@ -385,18 +389,30 @@ export const App: React.FC = () => {
             </div>
           </details>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
-          {currentList.map((item, idx) => (
+          {(() => {
+            // 把震荡推荐统一放到末尾展示，主推荐按返回顺序保留 1..N 编号
+            const mains = currentList.filter((it) => it.kind !== "shock");
+            const shocks = currentList.filter((it) => it.kind === "shock");
+            return [...mains.map((it, i) => ({ item: it, idx: i, isShock: false })),
+                    ...shocks.map((it) => ({ item: it, idx: -1, isShock: true }))];
+          })().map(({ item, idx, isShock }, key) => (
           <div
-            key={idx}
+            key={key}
             style={{
               borderRadius: 16,
-              border: "1px solid #eee",
+              border: isShock ? "1px dashed #8e24aa" : "1px solid #eee",
               padding: 16,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.04)"
+              boxShadow: isShock
+                ? "0 4px 16px rgba(142, 36, 170, 0.12)"
+                : "0 4px 12px rgba(0,0,0,0.04)",
+              background: isShock ? "#faf4ff" : "#fff",
+              position: "relative"
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <span style={{ fontWeight: 600 }}>推荐 #{idx + 1}</span>
+              <span style={{ fontWeight: 600, color: isShock ? "#6a1b9a" : "#333" }}>
+                {isShock ? "💥 震荡推荐" : `推荐 #${idx + 1}`}
+              </span>
               <button
                 type="button"
                 onClick={() => copyOne(item)}
@@ -626,15 +642,26 @@ export const App: React.FC = () => {
                           <span> 未匹配（可能尚未开奖或未拉取到该期真实数据）</span>
                         )}
                       </div>
-                      {rec.results.map((item, idx) => (
-                        <div key={idx} style={{ marginBottom: 8, fontSize: 14 }}>
-                          #{idx + 1}{" "}
-                          {rec._type === "ssq"
-                            ? `红球 ${((item as { reds?: number[] }).reds || []).join(" ")} 蓝球 ${(item as { blue?: number }).blue ?? "-"}`
-                            : `前区 ${((item as { fronts?: number[] }).fronts || []).join(" ")} 后区 ${((item as { backs?: number[] }).backs || []).join(" ")}`}
-                          {" "}(分 {typeof (item as { score?: number }).score === "number" ? (item as { score: number }).score.toFixed(4) : "-"})
-                        </div>
-                      ))}
+                      {rec.results.map((item, idx) => {
+                        const isShock = (item as { kind?: RecommendationKind }).kind === "shock";
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              marginBottom: 8,
+                              fontSize: 14,
+                              color: isShock ? "#6a1b9a" : undefined,
+                              fontWeight: isShock ? 600 : undefined,
+                            }}
+                          >
+                            {isShock ? "💥 震荡" : `#${idx + 1}`}{" "}
+                            {rec._type === "ssq"
+                              ? `红球 ${((item as { reds?: number[] }).reds || []).join(" ")} 蓝球 ${(item as { blue?: number }).blue ?? "-"}`
+                              : `前区 ${((item as { fronts?: number[] }).fronts || []).join(" ")} 后区 ${((item as { backs?: number[] }).backs || []).join(" ")}`}
+                            {" "}(分 {typeof (item as { score?: number }).score === "number" ? (item as { score: number }).score.toFixed(4) : "-"})
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

@@ -92,7 +92,8 @@ def _send_ssq(
         seed=seed,
     )
     payload_recs = [
-        {"reds": r.reds, "blue": r.blue, "score": r.score} for r in recs
+        {"reds": r.reds, "blue": r.blue, "score": r.score, "kind": r.kind}
+        for r in recs
     ]
     card = build_ssq_card(
         issue=info.issue,
@@ -123,7 +124,8 @@ def _send_dlt(
         seed=seed,
     )
     payload_recs = [
-        {"fronts": r.fronts, "backs": r.backs, "score": r.score} for r in recs
+        {"fronts": r.fronts, "backs": r.backs, "score": r.score, "kind": r.kind}
+        for r in recs
     ]
     card = build_dlt_card(
         issue=info.issue,
@@ -181,11 +183,11 @@ def main(argv: Optional[List[str]] = None) -> int:
             if t == "ssq":
                 recs = recommend_ssq(recommend_count=args.recommend_count)
                 logger.info("[dry-run] SSQ 期 %s: %s", info.issue,
-                            [(r.reds, r.blue) for r in recs])
+                            [(r.kind, r.reds, r.blue) for r in recs])
             else:
                 recs = recommend_dlt(recommend_count=args.recommend_count)
                 logger.info("[dry-run] DLT 期 %s: %s", info.issue,
-                            [(r.fronts, r.backs) for r in recs])
+                            [(r.kind, r.fronts, r.backs) for r in recs])
         return 0
 
     webhook_url = os.environ.get("FEISHU_WEBHOOK_URL", "").strip()
