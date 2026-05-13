@@ -8,6 +8,8 @@ from app.domain.simulation import (
     generate_dlt_candidates,
     generate_ssq_shock_combination,
     generate_dlt_shock_combination,
+    generate_ssq_random_shock_combination,
+    generate_dlt_random_shock_combination,
 )
 
 
@@ -156,4 +158,86 @@ def test_shock_combination_not_identical_to_main():
             different += 1
     # 由于补全位从「未出现号码」里抽，几乎所有次都该不同
     assert different >= 18
+
+
+# ---------------------------------------------------------------------------
+# 无规律震荡：基于主推荐 #1 随机替换 N 个号码
+# ---------------------------------------------------------------------------
+
+
+def test_ssq_random_shock_replaces_exactly_perturb_count():
+    """红球应替换正好 2 个，其余 4 个保持，蓝球不变。"""
+    base = SsqCombination(reds=[1, 2, 3, 4, 5, 6], blue=9)
+    shock = generate_ssq_random_shock_combination(
+        base_combination=base,
+        red_range=range(1, 34),
+        blue_range=range(1, 17),
+        perturb_count=2,
+        rng=random.Random(0),
+    )
+    assert len(shock.reds) == 6
+    assert len(set(shock.reds)) == 6
+    assert all(1 <= r <= 33 for r in shock.reds)
+    assert shock.blue == 9  # 蓝球保持
+    # 与原注的交集应为 4 个（替换了 2 个）
+    common = set(shock.reds) & set(base.reds)
+    assert len(common) == 4
+    # 新加入的 2 个号码必须不在原注里
+    new_nums = set(shock.reds) - set(base.reds)
+    assert len(new_nums) == 2
+    assert all(n not in base.reds for n in new_nums)
+
+
+def test_dlt_random_shock_replaces_exactly_perturb_count():
+    base = DltCombination(fronts=[1, 2, 3, 4, 5], backs=[3, 7])
+    shock = generate_dlt_random_shock_combination(
+        base_combination=base,
+        front_range=range(1, 36),
+        back_range=range(1, 13),
+        perturb_count=2,
+        rng=random.Random(0),
+    )
+    assert len(shock.fronts) == 5
+    assert len(set(shock.fronts)) == 5
+    assert shock.backs == [3, 7]  # 后区保持
+    common = set(shock.fronts) & set(base.fronts)
+    assert len(common) == 3
+    new_nums = set(shock.fronts) - set(base.fronts)
+    assert len(new_nums) == 2
+
+
+def test_ssq_random_shock_is_uniform_random():
+    """无规律震荡应当近似均匀分布，不依赖任何统计权重。
+
+    在主推荐固定的情况下，从「剩余 27 个红球」中均匀随机抽 2 个，
+    多次运行后被选中的号码应当较为分散。
+    """
+    base = SsqCombination(reds=[1, 2, 3, 4, 5, 6], blue=10)
+    picked_nums = set()
+    for s in range(200):
+        shock = generate_ssq_random_shock_combination(
+            base_combination=base,
+            red_range=range(1, 34),
+            blue_range=range(1, 17),
+            perturb_count=2,
+            rng=random.Random(s),
+        )
+        new_nums = set(shock.reds) - set(base.reds)
+        picked_nums.update(new_nums)
+    # 池中共 27 个可选号码（7-33），200 次抽样至少应触达 20 个
+    assert len(picked_nums) >= 20
+
+
+def test_random_shock_perturb_count_zero_returns_same():
+    """perturb_count=0 时应当返回与原注号码相同的组合。"""
+    base = SsqCombination(reds=[1, 5, 10, 15, 20, 25], blue=7)
+    shock = generate_ssq_random_shock_combination(
+        base_combination=base,
+        red_range=range(1, 34),
+        blue_range=range(1, 17),
+        perturb_count=0,
+        rng=random.Random(0),
+    )
+    assert set(shock.reds) == set(base.reds)
+    assert shock.blue == base.blue
 

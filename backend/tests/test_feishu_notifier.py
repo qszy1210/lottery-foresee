@@ -175,6 +175,27 @@ class TestCardBuilders:
         # 元素：header div + hr + 2 main div + hr + 1 shock div + hr + note = 8
         assert len(card["elements"]) == 8
 
+    def test_ssq_card_renders_random_shock_section(self):
+        """同时包含 shock 和 random_shock，应分为三段，文案含「无规律震荡」。"""
+        recs = [
+            {"reds": [1, 5, 10, 15, 20, 25], "blue": 7, "score": 0.4, "kind": "main"},
+            {"reds": [2, 8, 12, 18, 22, 30], "blue": 3, "score": 0.35, "kind": "main"},
+            {"reds": [3, 9, 14, 19, 24, 31], "blue": 11, "score": 0.30, "kind": "shock"},
+            {"reds": [1, 5, 11, 16, 20, 25], "blue": 7, "score": 0.32, "kind": "random_shock"},
+        ]
+        card = build_ssq_card("2026033", "2026-03-26", recs)
+        rendered = "\n".join(
+            e.get("text", {}).get("content", "") for e in card["elements"]
+            if e.get("tag") == "div"
+        )
+        assert "💥 震荡推荐" in rendered
+        assert "🎲 无规律震荡" in rendered
+        assert "2 组主推荐" in rendered
+        assert "1 注震荡" in rendered
+        assert "1 注无规律震荡" in rendered
+        # header + hr + 2 main + hr + 1 shock + hr + 1 random + hr + note = 10
+        assert len(card["elements"]) == 10
+
     def test_dlt_card_renders_shock_section(self):
         recs = [
             {"fronts": [1, 5, 10, 15, 20], "backs": [3, 7], "score": 0.42, "kind": "main"},
@@ -188,6 +209,20 @@ class TestCardBuilders:
         assert "震荡推荐" in rendered
         assert "1 组主推荐" in rendered
         assert "1 注震荡" in rendered
+
+    def test_dlt_card_renders_random_shock_section(self):
+        recs = [
+            {"fronts": [1, 5, 10, 15, 20], "backs": [3, 7], "score": 0.42, "kind": "main"},
+            {"fronts": [4, 9, 13, 21, 28], "backs": [2, 11], "score": 0.31, "kind": "shock"},
+            {"fronts": [1, 5, 11, 19, 20], "backs": [3, 7], "score": 0.33, "kind": "random_shock"},
+        ]
+        card = build_dlt_card("2026031", "2026-03-25", recs)
+        rendered = "\n".join(
+            e.get("text", {}).get("content", "") for e in card["elements"]
+            if e.get("tag") == "div"
+        )
+        assert "🎲 无规律震荡" in rendered
+        assert "1 注无规律震荡" in rendered
 
     def test_card_backward_compatible_without_kind(self):
         """旧数据没有 kind 字段时按主推荐处理，不会渲染震荡区块。"""

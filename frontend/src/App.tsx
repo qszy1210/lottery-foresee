@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 
-type RecommendationKind = "main" | "shock";
+type RecommendationKind = "main" | "shock" | "random_shock";
 
 type SsqRecommendation = {
   reds: number[];
@@ -390,37 +390,51 @@ export const App: React.FC = () => {
           </details>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
           {(() => {
-            // 把震荡推荐统一放到末尾展示，主推荐按返回顺序保留 1..N 编号
-            const mains = currentList.filter((it) => it.kind !== "shock");
+            // 把两类震荡分别放到末尾展示，主推荐按返回顺序保留 1..N 编号
+            const mains = currentList.filter((it) => !it.kind || it.kind === "main");
             const shocks = currentList.filter((it) => it.kind === "shock");
-            return [...mains.map((it, i) => ({ item: it, idx: i, isShock: false })),
-                    ...shocks.map((it) => ({ item: it, idx: -1, isShock: true }))];
-          })().map(({ item, idx, isShock }, key) => (
-          <div
-            key={key}
-            style={{
-              borderRadius: 16,
-              border: isShock ? "1px dashed #8e24aa" : "1px solid #eee",
-              padding: 16,
-              boxShadow: isShock
-                ? "0 4px 16px rgba(142, 36, 170, 0.12)"
-                : "0 4px 12px rgba(0,0,0,0.04)",
-              background: isShock ? "#faf4ff" : "#fff",
-              position: "relative"
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <span style={{ fontWeight: 600, color: isShock ? "#6a1b9a" : "#333" }}>
-                {isShock ? "💥 震荡推荐" : `推荐 #${idx + 1}`}
-              </span>
-              <button
-                type="button"
-                onClick={() => copyOne(item)}
-                style={{ fontSize: 12, padding: "2px 8px", borderRadius: 6, border: "1px solid #ccc", background: "#fff", cursor: "pointer" }}
-              >
-                复制
-              </button>
-            </div>
+            const randomShocks = currentList.filter((it) => it.kind === "random_shock");
+            return [
+              ...mains.map((it, i) => ({ item: it, idx: i, kind: "main" as RecommendationKind })),
+              ...shocks.map((it) => ({ item: it, idx: -1, kind: "shock" as RecommendationKind })),
+              ...randomShocks.map((it) => ({ item: it, idx: -1, kind: "random_shock" as RecommendationKind })),
+            ];
+          })().map(({ item, idx, kind }, key) => {
+            const isShock = kind === "shock";
+            const isRandomShock = kind === "random_shock";
+            const isSpecial = isShock || isRandomShock;
+            const borderColor = isRandomShock ? "#ef6c00" : isShock ? "#8e24aa" : "#eee";
+            const bgColor = isRandomShock ? "#fff7ec" : isShock ? "#faf4ff" : "#fff";
+            const textColor = isRandomShock ? "#e65100" : isShock ? "#6a1b9a" : "#333";
+            const shadowColor = isRandomShock
+              ? "rgba(239, 108, 0, 0.12)"
+              : isShock
+              ? "rgba(142, 36, 170, 0.12)"
+              : "rgba(0,0,0,0.04)";
+            return (
+            <div
+              key={key}
+              style={{
+                borderRadius: 16,
+                border: isSpecial ? `1px dashed ${borderColor}` : "1px solid #eee",
+                padding: 16,
+                boxShadow: `0 4px ${isSpecial ? 16 : 12}px ${shadowColor}`,
+                background: bgColor,
+                position: "relative"
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontWeight: 600, color: textColor }}>
+                  {isRandomShock ? "🎲 无规律震荡" : isShock ? "💥 震荡推荐" : `推荐 #${idx + 1}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => copyOne(item)}
+                  style={{ fontSize: 12, padding: "2px 8px", borderRadius: 6, border: "1px solid #ccc", background: "#fff", cursor: "pointer" }}
+                >
+                  复制
+                </button>
+              </div>
             <div style={{ marginBottom: 8 }}>
               {tab === "ssq" ? (
                 <>
@@ -499,9 +513,10 @@ export const App: React.FC = () => {
                 </>
               )}
             </div>
-            <div style={{ fontSize: 12, color: "#777" }}>打分：{item.score.toFixed(4)}</div>
-          </div>
-          ))}
+              <div style={{ fontSize: 12, color: "#777" }}>打分：{item.score.toFixed(4)}</div>
+            </div>
+          );
+          })}
           </div>
         </>
       )}
@@ -643,18 +658,26 @@ export const App: React.FC = () => {
                         )}
                       </div>
                       {rec.results.map((item, idx) => {
-                        const isShock = (item as { kind?: RecommendationKind }).kind === "shock";
+                        const kind = (item as { kind?: RecommendationKind }).kind;
+                        const isShock = kind === "shock";
+                        const isRandomShock = kind === "random_shock";
+                        const color = isRandomShock ? "#e65100" : isShock ? "#6a1b9a" : undefined;
+                        const label = isRandomShock
+                          ? "🎲 无规律震荡"
+                          : isShock
+                          ? "💥 震荡"
+                          : `#${idx + 1}`;
                         return (
                           <div
                             key={idx}
                             style={{
                               marginBottom: 8,
                               fontSize: 14,
-                              color: isShock ? "#6a1b9a" : undefined,
-                              fontWeight: isShock ? 600 : undefined,
+                              color,
+                              fontWeight: isShock || isRandomShock ? 600 : undefined,
                             }}
                           >
-                            {isShock ? "💥 震荡" : `#${idx + 1}`}{" "}
+                            {label}{" "}
                             {rec._type === "ssq"
                               ? `红球 ${((item as { reds?: number[] }).reds || []).join(" ")} 蓝球 ${(item as { blue?: number }).blue ?? "-"}`
                               : `前区 ${((item as { fronts?: number[] }).fronts || []).join(" ")} 后区 ${((item as { backs?: number[] }).backs || []).join(" ")}`}

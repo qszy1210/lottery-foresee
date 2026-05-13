@@ -225,3 +225,74 @@ def generate_dlt_shock_combination(
 
     return DltCombination(fronts=fronts, backs=backs)
 
+
+# ---------------------------------------------------------------------------
+# 无规律震荡（基于主推荐 #1 的纯随机替换）
+# ---------------------------------------------------------------------------
+#
+# 与 shock 不同：random_shock 不使用任何概率/频次权重，
+# 而是从主推荐分数最高的一注里，随机挑 perturb_count 个位置，
+# 把它们替换为「该注没出现过、从全集均匀随机抽取」的号码。
+# 体现"无规律"含义，给主推荐注入一份完全失序的扰动。
+
+
+def generate_ssq_random_shock_combination(
+    base_combination: SsqCombination,
+    red_range: range,
+    blue_range: range,
+    *,
+    perturb_count: int = 2,
+    rng: Optional[random.Random] = None,
+) -> SsqCombination:
+    """基于一注双色球主推荐，无规律随机替换其中 perturb_count 个红球。
+
+    - 蓝球保持不变（用户需求："号码中的两个"扰动，蓝球不动）；
+    - 替换号码均匀随机抽取，不依赖任何统计权重，体现"无规律"。
+    """
+    rand = rng if rng is not None else random.Random()
+    reds = list(base_combination.reds)
+    perturb_count = max(0, min(perturb_count, len(reds)))
+    if perturb_count == 0:
+        return SsqCombination(reds=sorted(reds), blue=base_combination.blue)
+
+    drop_positions = rand.sample(range(len(reds)), perturb_count)
+    kept = [r for i, r in enumerate(reds) if i not in drop_positions]
+    pool = [n for n in red_range if n not in reds]
+    if len(pool) < perturb_count:
+        # 极端兜底（如 perturb_count 超出剩余号码数）
+        replacements = pool
+    else:
+        replacements = rand.sample(pool, perturb_count)
+    new_reds = sorted(set(kept) | set(replacements))
+    return SsqCombination(reds=new_reds, blue=base_combination.blue)
+
+
+def generate_dlt_random_shock_combination(
+    base_combination: DltCombination,
+    front_range: range,
+    back_range: range,
+    *,
+    perturb_count: int = 2,
+    rng: Optional[random.Random] = None,
+) -> DltCombination:
+    """基于一注大乐透主推荐，无规律随机替换其中 perturb_count 个前区号。
+
+    - 后区保持不变；
+    - 替换号码均匀随机抽取，不依赖任何统计权重。
+    """
+    rand = rng if rng is not None else random.Random()
+    fronts = list(base_combination.fronts)
+    perturb_count = max(0, min(perturb_count, len(fronts)))
+    if perturb_count == 0:
+        return DltCombination(fronts=sorted(fronts), backs=list(base_combination.backs))
+
+    drop_positions = rand.sample(range(len(fronts)), perturb_count)
+    kept = [f for i, f in enumerate(fronts) if i not in drop_positions]
+    pool = [n for n in front_range if n not in fronts]
+    if len(pool) < perturb_count:
+        replacements = pool
+    else:
+        replacements = rand.sample(pool, perturb_count)
+    new_fronts = sorted(set(kept) | set(replacements))
+    return DltCombination(fronts=new_fronts, backs=list(base_combination.backs))
+
